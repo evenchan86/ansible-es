@@ -1,0 +1,110 @@
+---
+- name: create user
+  user: name={{ username }} shell=/bin/bash createhome=yes
+
+- name: 分发公钥至各节点
+  authorized_key: user={{ username }} key="{{ lookup('file', 'id_rsa.pub') }}"
+
+- name: update sudoers file
+  lineinfile:
+    dest: /etc/sudoers
+    line: '{{ username }} ALL=(ALL) NOPASSWD: ALL'
+    insertafter: EOF
+    regexp: '^{{ username }} .*'
+    state: present
+
+- name: 配置 hosts 映射
+  sudo: yes
+  lineinfile:
+    dest: '/etc/hosts'
+    line: '{{ item.key }} {{ item.value }}'
+    regexp: '{{ item.key }} {{ item.value }}'
+    state: present
+  with_items:
+    - { key: "192.168.1.160", value: "master-01" }
+    - { key: "192.168.1.161", value: "master-02" }
+    - { key: "192.168.1.162", value: "master-03" }    
+  
+- file:
+    path: "/opt/es"
+    state: directory
+    owner: elasticsearch
+    group: elasticsearch
+    mode: 0755
+
+- name: unarchive jdk file to remote server
+  unarchive: src=files/elasticsearch-{{ version }}.tar.gz dest=/opt/es/
+
+- file:
+    path: "{{ data_path }}"
+    state: directory
+    owner: elasticsearch
+    group: elasticsearch
+    mode: 0755
+
+- file:
+    path: "{{ log_path }}"
+    state: directory
+    owner: elasticsearch
+    group: elasticsearch
+    mode: 0755
+
+- name: copy conf
+  template: src=elasticsearch.yml.j2   dest=/opt/es/elasticsearch-{{ version }}/config/elasticsearch.yml
+
+- name: copy conf2
+  template: src=jvm.options.j2   dest=/opt/es/elasticsearch-{{ version }}/config/jvm.options
+
+- name: chown es
+  shell: chown -R elasticsearch:elasticsearch /opt/es/
+
+- name: chown es
+  shell: chmod -R 0755 /opt/es/
+
+- name: 修改配置文件 limits.conf
+  lineinfile:
+    dest: '/etc/security/limits.conf'
+    line: '*       {{ item.value }}'
+    regexp: '.*{{ item.value }}.*'
+    state: present
+  with_items:
+    - { value: 'soft     nofile         65536' }
+    - { value: 'hard     nofile         65536' }
+    - { value: 'soft     nproc          2048' }
+    - { value: 'hard     nproc          4096' }
+    - { value: 'soft     memlock        unlimited' }
+    - { value: 'hard     memlock        unlimited' }
+
+- name: 修改配置文件 sysctl.conf
+  lineinfile:
+    dest: '/etc/sysctl.conf'
+    line: '{{ item.value }}'
+    regexp: '^{{ item.value }}.*'
+    state: present
+  with_items:
+    - { value: 'vm.max_map_count = 655360' }
+    - { value: 'vm.swappiness=0' }
+
+- name: 让内核参数立即生效
+  shell: 'sysctl -p'
+
+- name: ulock
+  shell: 'ulimit -l unlimited'
+
+- name: cp es start
+  copy:
+    src: elasticsearch
+    dest: /etc/init.d
+    mode: 0755
+
+- name: cp es start
+  copy:
+    src: elasticsearch
+    dest: /usr/sbin
+    mode: 0755
+
+- name: set start server
+  shell: 'chkconfig --add elasticsearch'
+
+- name: start server
+  shell: 'elasticsearch start'

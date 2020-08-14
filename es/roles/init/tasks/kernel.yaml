@@ -1,0 +1,13 @@
+- name: Copy kernel package
+  copy:
+    src: kernel-ml-4.19.12-1.el7.elrepo.x86_64.rpm
+    dest: /opt/kernel-ml-4.19.12-1.el7.elrepo.x86_64.rpm
+
+- name: Install epel repo
+  yum: name=/opt/kernel-ml-4.19.12-1.el7.elrepo.x86_64.rpm state=present
+
+- name: Sed grub config
+  shell: "sed -i s/GRUB_DEFAULT=saved/GRUB_DEFAULT=0/g /etc/default/grub"
+
+- name: Grub mkconfig
+  shell: "grub2-mkconfig -o /boot/grub2/grub.cfg"

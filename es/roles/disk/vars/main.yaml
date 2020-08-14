@@ -1,0 +1,8 @@
+---
+
+disks:
+  /dev/vdb: /data1
+  /dev/vdc: /data2
+  /dev/vdd: /data3
+  /dev/vde: /data4
+   

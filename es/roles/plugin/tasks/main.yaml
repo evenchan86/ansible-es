@@ -1,0 +1,22 @@
+---
+- name: mkdir ik                                                                                                               
+  file: path=/opt/es/elasticsearch-{{ version }}/plugins/ik state=directory mode=0755
+
+- name: mkdir sql                                                                                                               
+  file: path=/opt/es/elasticsearch-{{ version }}/plugins/sql state=directory mode=0755
+
+- name: scp ik files
+  unarchive: src=files/elasticsearch-analysis-ik-{{ version }}.zip dest=/opt/es/elasticsearch-{{ version }}/plugins/ik/
+
+- name: scp sql files
+  unarchive: src=files/elasticsearch-sql-{{ version }}.zip dest=/opt/es/elasticsearch-{{ version }}/plugins/sql/
+
+- name: restart service
+  shell: systemctl restart elasticsearch.service |grep -v grep |grep elasticsearch|wc -l
+  register: service_status
+  ignore_errors: true
+
+- name: print status
+  debug:
+    msg: "{{ service_status }}"
+

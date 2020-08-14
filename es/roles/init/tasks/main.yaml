@@ -1,0 +1,84 @@
+- include_tasks: kernel.yaml
+  when: ansible_os_family == "RedHat"
+
+- name: 设置各节点 hostname
+  hostname: name={{ hn }}
+
+- name: 关闭 Firewalld
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  with_items:
+    - firewalld
+  ignore_errors: true
+
+- name: 分发公钥至各节点
+  authorized_key: user=root key="{{ lookup('file', 'id_rsa.pub') }}"
+
+- name: change timezone
+  file: src=/usr/share/zoneinfo/Asia/Shanghai path=/etc/localtime state=link force=true
+
+- name: 优化openfile
+  lineinfile: 
+    dest: /etc/security/limits.conf
+    regexp: "\\* - nofile 65536"
+    line: "* - nofile 65536"
+
+- name: 修改systemctl启动的最小文件打开数量
+  lineinfile:
+    dest: /etc/systemd/system.conf
+    state: present
+    regexp: "^#{{ item.key }}"
+    line: "\\1={{ item.value }}"
+    backrefs: yes
+  with_items:
+  - { key: '(DefaultLimitCORE)=', value: '100000' }
+  - { key: '(DefaultLimitNOFILE)=', value: '100000' }
+
+- name: 关闭 selinux
+  lineinfile: 
+    dest: /etc/selinux/config  
+    regexp: "^SELINUX=" 
+    line: "SELINUX=disabled"
+
+- name: 关闭sshd反向解析
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^#UseDNS"
+    line: "UseDNS no"
+
+- name: 添加EPEL仓库
+  yum: name=epel-release state=latest update_cache=yes   
+
+- name: 安装初始化工具包
+  yum:
+    name:
+      - ntp
+      - expect
+      - bc
+      - net-tools
+      - iotop
+      - zip
+      - unzip
+      - telnet
+      - wget
+      - iperf3
+      - fio
+      - lzo
+      - vim
+      - lrzsz
+    state: latest
+    update_cache: yes
+
+- name: 启动 ntpd
+  service: name=ntpd state=started enabled=yes
+
+
+- name: 分发DNS配置文件
+  copy:
+    src: resolv.conf
+    dest: /etc/resolv.conf
+    backup: true
+
+
