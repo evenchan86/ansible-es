@@ -16,4 +16,4 @@ jdk_version: jdk1.8.0_202
 
 data_path: /opt/es/elasticsearch-{{ version }}/data
 
-log_path: /opt/es/elasticsearch-{{ version }}/log
+log_path: /data1/elasticsearch-{{ version }}/log
